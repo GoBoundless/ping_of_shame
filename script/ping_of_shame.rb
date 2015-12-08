@@ -1,8 +1,9 @@
 #!/usr/bin/ruby
 
+# require "pry"
+# require "awesome_print"
 require "slack-notifier"
 require "time"
-require "pry"
 require "action_view"
 require "action_view/helpers"
 
@@ -40,7 +41,7 @@ end
 def get_running_canvas_apps
   all_apps = `#{HEROKU_BIN} apps -p`.strip.split("\n") # note: this includes "=== My Apps"
 
-  canvas_apps = all_apps.select { |app_name| app_name.start_with?("boundless-canvas") }
+  canvas_apps = all_apps.select { |app_name| app_name.start_with?("boundless-canvas") }.map { |app_name| app_name.split(/\s+/)[0] }
 
   running_canvas_apps = []
   first = true
