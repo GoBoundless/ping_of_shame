@@ -10,6 +10,7 @@ include ActionView::Helpers::DateHelper     # for time_ago_in_words
 
 HEROKU_USER = ENV.fetch("HEROKU_USER")
 SLACK_HOOK = ENV.fetch("SLACK_HOOK")
+HEROKU_BIN = "bin/heroku/bin/heroku"      # installed by the buildpack
 
 DYNO_COSTS = {
   "free" => 0,
@@ -27,7 +28,7 @@ def run
 end
 
 def ensure_correct_user
-  current_user = `heroku auth:whoami`.strip
+  current_user = `#{HEROKU_BIN} auth:whoami`.strip
 
   if current_user != HEROKU_USER
     $stderr.puts "Heroku toolkit not logged in as '#{HEROKU_USER}'."
@@ -37,7 +38,7 @@ def ensure_correct_user
 end
 
 def get_running_canvas_apps
-  all_apps = `heroku apps -p`.strip.split("\n") # note: this includes "=== My Apps"
+  all_apps = `#{HEROKU_BIN} apps -p`.strip.split("\n") # note: this includes "=== My Apps"
 
   canvas_apps = all_apps.select { |app_name| app_name.start_with?("boundless-canvas") }
 
@@ -45,7 +46,7 @@ def get_running_canvas_apps
   first = true
   canvas_apps.each do |app_name|
     sleep 1 if !first     # let's rate limit ourselves
-    app_status_json = `heroku apps:info -j --app "#{app_name}"`
+    app_status_json = `#{HEROKU_BIN} apps:info -j --app "#{app_name}"`
     app_status = JSON.parse(app_status_json)
     app_dynos = app_status["dynos"]
     if app_dynos.any?
