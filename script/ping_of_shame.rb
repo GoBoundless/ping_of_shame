@@ -76,7 +76,7 @@ end
 def notify_slack_about_apps(running_apps)
   return if !running_apps.any?
 
-  notifier = Slack::Notifier.new(SLACK_HOOK)
+  notifier = Slack::Notifier.new(SLACK_HOOK, username: ENV.fetch("SLACK_USERNAME", "pingOfShame"))
 
   message = ":money_with_wings::heroku::bell: Warning, the following canvas apps are running :bell::heroku::money_with_wings:"
   running_apps.each do |app|
