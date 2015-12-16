@@ -10,8 +10,7 @@ require "action_view/helpers"
 include ActionView::Helpers::DateHelper     # for time_ago_in_words
 
 HEROKU_USER = ENV.fetch("HEROKU_USER")
-SLACK_HOOK = ENV.fetch("SLACK_HOOK")
-HEROKU_BIN = "bin/heroku/bin/heroku"      # installed by the buildpack
+SLACK_HOOK = ENV["SLACK_HOOK"]
 
 DYNO_COSTS = {
   "free" => 0,
@@ -29,7 +28,7 @@ def run
 end
 
 def ensure_correct_user
-  current_user = `#{HEROKU_BIN} auth:whoami`.strip
+  current_user = `#{heroku_bin} auth:whoami`.strip
 
   if current_user != HEROKU_USER
     $stderr.puts "Heroku toolkit not logged in as '#{HEROKU_USER}'."
@@ -39,15 +38,15 @@ def ensure_correct_user
 end
 
 def get_running_canvas_apps
-  all_apps = `#{HEROKU_BIN} apps -p`.strip.split("\n") # note: this includes "=== My Apps"
+  all_apps = `#{heroku_bin} apps -p`.strip.split("\n") # note: this includes "=== My Apps"
 
-  canvas_apps = all_apps.select { |app_name| app_name.start_with?("boundless-canvas") }.map { |app_name| app_name.split(/\s+/)[0] }
+  canvas_apps = all_apps.select(&method(:select_interesting_apps)).map { |app_name| app_name.split(/\s+/)[0] }
 
   running_canvas_apps = []
   first = true
   canvas_apps.each do |app_name|
     sleep 1 if !first     # let's rate limit ourselves
-    app_status_json = `#{HEROKU_BIN} apps:info -j --app "#{app_name}"`
+    app_status_json = `#{heroku_bin} apps:info -j --app "#{app_name}"`
     app_status = JSON.parse(app_status_json)
     app_dynos = app_status["dynos"]
     if app_dynos.any?
@@ -76,8 +75,6 @@ end
 def notify_slack_about_apps(running_apps)
   return if !running_apps.any?
 
-  notifier = Slack::Notifier.new(SLACK_HOOK, username: ENV.fetch("SLACK_USERNAME", "pingOfShame"))
-
   message = ":money_with_wings::heroku::bell: Warning, the following canvas apps are running :bell::heroku::money_with_wings:"
   running_apps.each do |app|
     time_ago = time_ago_in_words(app[:created_at])
@@ -85,7 +82,36 @@ def notify_slack_about_apps(running_apps)
     message << "\n#{app[:app_name]} - Running for #{time_ago} - cost so far: #{app[:cost]}"
   end
   message << "\nhttp://media.giphy.com/media/l41lP9PkGs7yhg9s4/giphy.gif"
-  notifier.ping message
+
+  if SLACK_HOOK.nil?
+    puts "Printing out slack message instead of sending to slack because the SLACK_HOOK env var isn't set"
+    puts message
+  else
+    notifier = Slack::Notifier.new(SLACK_HOOK, username: ENV.fetch("SLACK_USERNAME", "pingOfShame"))
+
+    notifier.ping message
+  end
+
+end
+
+def select_interesting_apps(app_name)
+  app_name.start_with?("boundless-canvas") || app_name == "boundless-staging"
+end
+
+def heroku_bin
+  @heroku_bin ||= begin
+    buildpack_bin = "bin/heroku/bin/heroku"
+    if File.exist?(buildpack_bin)
+      buildpack_bin
+    else
+      bin = `which heroku`.strip
+      if !bin.nil? && bin != ""
+        bin
+      else
+        raise "unable to find heroku bin"
+      end
+    end
+  end
 end
 
 run
