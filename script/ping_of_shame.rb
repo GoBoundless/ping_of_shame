@@ -96,7 +96,7 @@ def notify_slack_about_apps(running_temporary_apps)
 end
 
 def select_temporary_apps(apps)
-  apps.select { |app_name| app_name.start_with?("boundless-canvas") || app_name.start_with?("boundless-staging") }
+  apps.select { |app_name| app_name.start_with?("boundless-canvas") }
 end
 
 def heroku_bin
