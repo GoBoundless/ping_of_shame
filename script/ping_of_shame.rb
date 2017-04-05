@@ -38,9 +38,9 @@ def ensure_correct_user
 end
 
 def get_running_temporary_apps
-  all_apps = `#{heroku_bin} apps -p`.strip.split("\n") # note: this includes "=== My Apps"
+  all_apps = `#{heroku_bin} apps -A`.strip.split("\n") # note: this includes "=== My Apps"
 
-  app_names = all_apps.map { |app_name| app_name.split(/\s+/)[0] }
+  app_names = all_apps.map { |app_name| app_name.split(/\s+/)[0] }.compact
   temporary_apps = select_temporary_apps(app_names)
 
   running_temporary_apps = []
@@ -96,7 +96,7 @@ def notify_slack_about_apps(running_temporary_apps)
 end
 
 def select_temporary_apps(apps)
-  apps.select { |app_name| app_name.start_with?("boundless-canvas") }
+  apps.select { |app_name| app_name.start_with?("boundless-canvas") || app_name == "boundless-staging" }
 end
 
 def heroku_bin
